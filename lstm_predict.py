@@ -1,18 +1,25 @@
 """ This module generates notes for a midi file using the
     trained neural network """
+import glob
 import pickle
 import numpy
-from music21 import instrument, note, stream, chord
+import matplotlib
+from music21 import converter, instrument, note, chord, stream
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense,Flatten,Embedding
 from keras.layers import Dropout
 from keras.layers import LSTM
 from keras.layers import Activation
+from keras.utils import np_utils
+from keras.callbacks import ModelCheckpoint
+from matplotlib import pyplot as plt
 
 def generate():
     """ Generate a piano midi file """
+    w=15 #la nostra sequenza
+
     #load the notes used to train the model
-    with open('data/notes', 'rb') as filepath:
+    with open('data/seen_notes', 'rb') as filepath:
         notes = pickle.load(filepath)
 
     # Get all pitch names
@@ -20,51 +27,66 @@ def generate():
     # Get all pitch names
     n_vocab = len(set(notes))
 
-    network_input, normalized_input = prepare_sequences(notes, pitchnames, n_vocab)
-    model = create_network(normalized_input, n_vocab)
-    prediction_output = generate_notes(model, network_input, pitchnames, n_vocab)
+    note_input, normalized_input = prepare_sequences(notes, n_vocab, w, pitchnames)
+    model = create_network(note_input, n_vocab)
+    prediction_output = generate_notes(model, note_input, pitchnames, n_vocab)
     create_midi(prediction_output)
 
-def prepare_sequences(notes, pitchnames, n_vocab):
+def prepare_sequences(notes, n_vocab, w, pitchnames):
     """ Prepare the sequences used by the Neural Network """
-    # map between notes and integers and back
+
+    # get all pitch names
+    #pitchnames = sorted(set(item for item in notes))
+
+     # create a dictionary to map pitches to integers
     note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
 
-    sequence_length = 15
-    network_input = []
-    output = []
-    for i in range(0, len(notes) - sequence_length, 1):
-        sequence_in = notes[i:i + sequence_length]
-        sequence_out = notes[i + sequence_length]
-        network_input.append([note_to_int[char] for char in sequence_in])
-        output.append(note_to_int[sequence_out])
+    note_input = []
+    note_output = []
 
-    n_patterns = len(network_input)
+    duration_input = []
+    duration_output = []
+
+    # create input sequences and the corresponding outputs
+    for i in range(0, len(notes) - w, 1):     ##for (inizio,fine,passo)
+        sequence_in = notes[i:i + w]
+        sequence_out = notes[i + w]
+        note_input.append([note_to_int[char] for char in sequence_in])
+        note_output.append(note_to_int[sequence_out])
+
+
+    n_patterns = len(note_input)
 
     # reshape the input into a format compatible with LSTM layers
-    normalized_input = numpy.reshape(network_input, (n_patterns, sequence_length, 1))
+    normalized_input = numpy.reshape(note_input, (n_patterns, w, 1))
     # normalize input
+
     normalized_input = normalized_input / float(n_vocab)
 
-    return (network_input, normalized_input)
+    note_output = np_utils.to_categorical(note_output)
+    #note_input = np_utils.to_categorical(note_input)
 
-def create_network(network_input, n_vocab):
+    return note_input, normalized_input
+
+
+def create_network(note_input, n_vocab):
     """ create the structure of the neural network """
     model = Sequential()
+    #model.add(Embedding(input_dim=n_vocab,output_dim=256))
     model.add(LSTM(
-        256,
-        input_shape=(network_input.shape[1],network_input.shape[2]),
+        units=256,
+        input_shape=(note_input.shape[1],note_input.shape[2]),
         return_sequences=True
     ))                      ##LSTM(unità, dimensionalità degli ingressi,se mandare in uscita tutta la sequenza o una parte(?))
-   #model.add(Dropout(0.3))     ##dropout =  Fraction of the units to drop for the linear transformation of the inputs.
-    #model.add(LSTM(256, return_sequences=True))
+    model.add(Dropout(0.3))     ##dropout =  Fraction of the units to drop for the linear transformation of the inputs.
+    model.add(LSTM(units=256))
+    model.add(Dropout(0.3))
+    #model.add(LSTM(units=256,return_sequences=True))
+    #model.add(Dense(128))       ##a quanto pare ti genera una rete "normale"
     #model.add(Dropout(0.3))
-    model.add(LSTM(n_vocab))
-    #model.add(Dense(64))       ##a quanto pare "mandane in uscita 256"
-    #model.add(Dropout(0.3))
-   # model.add(Dense(n_vocab))
+    model.add(Dense(units=n_vocab))
     model.add(Activation('softmax'))
-    model.compile(loss='binary_crossentropy', optimizer='rmsprop',metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer='Adam', metrics=['accuracy'])
 
     ##To calculate the loss for each iteration of the training we
     ## will be using categorical cross entropy since each of our outputs
@@ -72,18 +94,18 @@ def create_network(network_input, n_vocab):
     ## And to optimise our network we will use a RMSprop optimizer as it is usually a very good choice for recurrent neural networks.
 
     # Load the weights to each node
-    model.load_weights('TEST1weights-improvement-50-0.0062-bigger.hdf5')
+    model.load_weights('mymodel-50-0.4568.hdf5')
 
     return model
 
-def generate_notes(model, network_input, pitchnames, n_vocab):
+def generate_notes(model, note_input, pitchnames, n_vocab):
     """ Generate notes from the neural network based on a sequence of notes """
     # pick a random sequence from the input as a starting point for the prediction
-    start = numpy.random.randint(0, len(network_input)-1)
+    start = numpy.random.randint(0, len(note_input)-1)
 
     int_to_note = dict((number, note) for number, note in enumerate(pitchnames))
 
-    pattern = network_input[start]
+    pattern = note_input[start]
     prediction_output = []
 
     # generate n notes
