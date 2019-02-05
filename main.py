@@ -13,7 +13,7 @@ def main():
     allnotes, alldurations, songs = pre_processing.get_notes(max_quarter)
 
     vocab = sorted(
-    set(item for item in allnotes))  # nel set trovo l'alfabeto di note viste (associate al pitch) - pitch names
+    set(item for item in allnotes))  # nel set trovo l'alfabeto di note viste (associate al pitch) - pitch names, mi serve per la generazione dei midi
     print('pitch names: ' + str(vocab))
 
     n_vocab = len(set(allnotes))
@@ -29,7 +29,7 @@ def main():
         model = training.create_network(note_input, n_vocab, duration_input, durations_vocab)
 
 
-    n = note_input.shape[0]  # 56468x32x354
+    n = note_input.shape[0]
     print('dimensioni dataset: ' + str(note_input.shape[0]) + ' finestre da ' + str(
         note_input.shape[1]) + ' con dimensione one-hot di ' + str(note_input.shape[2]))
 
@@ -69,7 +69,7 @@ def main():
     generation_note, generation_time, seed_note, seed_time, original_note, original_time = generation.free_run(model, note_input,
                                                                                                     duration_input,
                                                                                                     vocab, n_vocab,
-                                                                                                    durations_vocab)  # generation_time (100, 1, 8) - generation_note (100,)
+                                                                                                    durations_vocab)
     create_midi(generation_note, generation_time,
                 'generation')  # generation note -> note argmaxate - generation_time -> durate non argmaxate
 
@@ -90,7 +90,7 @@ def create_midi(note, time, name):
     offset = 0
     output_notes = []
 
-    prediction_time = np.asarray(time)  # prediction_time shape (14117, 8)
+    prediction_time = np.asarray(time)
 
     if name == 'generation':
         prediction_time = np.argmax(prediction_time, axis=2).astype('float32')
