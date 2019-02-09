@@ -13,12 +13,13 @@ def create_network(note_input,  n_vocab, durations_input, durations_vocab):
 
     input = concatenate([input1, input2])
 
-    y = LSTM(units=25, return_sequences=False)(input)
+    y = LSTM(units=100, return_sequences=False)(input)
 
     out1 = Dense(units=n_vocab, activation='softmax')(y)
     out2 = Dense(units=durations_vocab, activation='softmax')(y)
 
     model = Model(inputs=[input1, input2], outputs=[out1, out2])
+
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     model.summary()
 
@@ -27,6 +28,7 @@ def create_network(note_input,  n_vocab, durations_input, durations_vocab):
 def train(model, note_input, note_output,duration_input,duration_output, epochs, batch_size, note_x_test, note_y_test, time_x_test, time_y_test):
 
     t = model.fit([note_input, duration_input], [note_output, duration_output], epochs=epochs, batch_size=batch_size, validation_data=([note_x_test, time_x_test], [note_y_test, time_y_test]))
+
     model.save("mymodel")
     return t
 

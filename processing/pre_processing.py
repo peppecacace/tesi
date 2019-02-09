@@ -84,14 +84,8 @@ def get_notes(max_quarter):
 
     return allnotes, alldurations, songs
 
-def prepare_sequences(allnotes, w, songs):
+def prepare_sequences(allnotes, w, songs, note_to_int):
     """ Prepare the sequences used by the Neural Network """
-
-        # get all pitch names
-    pitchnames = sorted(set(item for item in allnotes))
-
-        # create a dictionary to map pitches to integers
-    note_to_int = dict((note, number) for number, note in enumerate(pitchnames))
 
     note_input = []
     note_output = []

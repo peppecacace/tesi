@@ -1,7 +1,7 @@
 import numpy as np
 
-def free_run(model, note_input, duration_input, vocab, n_vocab, max_quarter):
-    int_to_note = dict((number, note) for number, note in enumerate(vocab))
+def free_run(model, note_input, duration_input, n_vocab, max_quarter, int_to_note):
+
 
     '''seed_n = np.random.randint(1, n_vocab, size=[w])  # seed1 - RANDOM
     seed_t = np.random.randint(1, max_quarter, size=[w])  # seed2
