@@ -7,7 +7,6 @@ import os
 import random
 
 def get_notes(max_quarter):
-    """ Get all the notes and chords from the midi files in the ./midi_songs directory """
     dataset_path = 'midi_songs'
     skip_path = 'processing/data'
 
@@ -84,7 +83,7 @@ def get_notes(max_quarter):
 
     return allnotes, alldurations, songs
 
-def prepare_sequences(allnotes, w, songs, note_to_int):
+def prepare_sequences(w, songs, note_to_int):
     """ Prepare the sequences used by the Neural Network """
 
     note_input = []
@@ -108,8 +107,6 @@ def prepare_sequences(allnotes, w, songs, note_to_int):
 
             duration_input.append(durations[i:i + w])
             duration_output.append(durations[i + w])
-
-    n_patterns = len(note_input)
 
 
     note_output = np_utils.to_categorical(note_output)

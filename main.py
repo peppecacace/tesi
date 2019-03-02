@@ -2,12 +2,12 @@ import numpy as np
 from processing import pre_processing, training
 from after_training import generation, predict
 import music21
+import matplotlib.pyplot as plt
 
 w = 15 #la nostra sequenza
 max_quarter = 8   #massimi quarti di battuta
-epochs = 100
-batch_size = 32
-train = True
+epochs = 50         #epoche
+batch_size = 16
 
 def main():
     allnotes, alldurations, songs = pre_processing.get_notes(max_quarter)
@@ -27,12 +27,9 @@ def main():
 
     int_to_note = dict((number, note) for number, note in enumerate(vocab))
 
+    note_input, note_output, duration_input, duration_output = pre_processing.prepare_sequences(w, songs, note_to_int)
 
-    if(train):
-
-        note_input, note_output, duration_input, duration_output = pre_processing.prepare_sequences(allnotes, w, songs, note_to_int)
-
-        model = training.create_network(note_input, n_vocab, duration_input, durations_vocab)
+    model = training.create_network(note_input, n_vocab, duration_input, durations_vocab)
 
 
     n = note_input.shape[0]
@@ -57,10 +54,15 @@ def main():
     time_y_val = duration_output[dslice*8:dslice*9]
     time_y_test = duration_output[dslice*9:]
 
-    #t = training.train(model, note_x_train, note_y_train, time_x_train, time_y_train, epochs, batch_size, note_x_val, note_y_val, time_x_val, time_y_val)
+    t = training.train(model, note_x_train, note_y_train, time_x_train, time_y_train, epochs, batch_size, note_x_val, note_y_val, time_x_val, time_y_val)
 
-    #training.plottraining(t)
+    scores = training.evaluatingmodels(note_x_test, time_x_test, note_y_test, time_y_test, epochs, model)
+
+
+    training.plottraining(t, scores)
+
     model.load_weights('mymodel')
+
 
     scores2 = model.evaluate([note_x_test, time_x_test], [note_y_test, time_y_test])
 
@@ -78,19 +80,16 @@ def main():
                                                                                                      n_vocab,
                                                                                                     durations_vocab, int_to_note)
     create_midi(generation_note, generation_time,
-                'generation')  # generation note -> note argmaxate - generation_time -> durate non argmaxate
-
-    create_midi(original_note, original_time, 'generationoriginal')
-
-    create_midi(seed_note, seed_time, 'generationseed')
+                'generation')
 
     # PREDIZIONE
-    p_note, p_time = predict.prediction(model, note_x_test, time_x_test, note_y_test, time_y_test, n_vocab, durations_vocab, int_to_note)
-    create_midi(p_note, p_time, 'prediction')
+    p_note, p_time, cm, n_classes = predict.prediction(model, note_x_test, time_x_test, note_y_test, time_y_test, n_vocab, durations_vocab, int_to_note)
+    fig, ax = predict.plot_confusion_matrix(conf_mat=cm,
+                                    colorbar=True,
+                                    show_absolute=True,
+                                    show_normed=False)
 
-    # ORIGINALE PREDIZIONE, per vedere di quanto è diverso l'originale dalla predizione fatta, da errori di esecuzioni da vedere meglio
-    pnotes = predict.original_prediction(vocab, note_y_test, int_to_note)
-    create_midi(pnotes, time_y_test, 'original')
+    plt.show()
 
 
 def create_midi(note, time, name):

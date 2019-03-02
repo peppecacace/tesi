@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.metrics import confusion_matrix
-import itertools
 from matplotlib import pyplot as plt
 
 def prediction(model, note_input, duration_input, note_output, duration_output, n_vocab, time_vocab, int_to_note):
@@ -9,46 +8,104 @@ def prediction(model, note_input, duration_input, note_output, duration_output, 
     p1 = np.asarray(p_1)
     p2 = np.asarray(p_2)
 
-    p1 = np.argmax(p1, axis=1)  # tutte le note predette (14117, 354)
-    #p2 = np.argmax(p2, axis=1)  # tutte le durate predette (14117, 8)
+    p11 = np.asarray(note_output)
+    p_11 = np.argmax(p11, axis=1)
 
+    p1 = np.argmax(p1, axis=1)  # tutte le note predette
+    #p2 = np.argmax(p2, axis=1)  # tutte le durate predette
 
-    #note_cm = matrice_confusione(p_1, note_output, n_vocab)
+    cnotepredette = []
+    cnoteoriginali = []
 
-    #time_cm = matrice_confusione(p_2, duration_output, time_vocab)
-
-    #print(note_cm)
-    #print(time_cm)
 
     pnotes = []
+    p2notes = []
     for i in range(len(p1)):
         pnote = int_to_note[p1[i]]  # nota associata al valore numerico della nota
         pnotes.append(pnote)
 
+    for i in range(len(p_11)):
+        pnote = int_to_note[p_11[i]]
+        p2notes.append(pnote)
 
-    return pnotes, p_2
+    for i in range(len(p2notes)):
+        if "." not in str(p2notes[i]):
+            if str.isnumeric(p2notes[i]) == False:
+                if "." not in str(pnotes[i]):
+                    if str.isnumeric(pnotes[i]) == False:
+                        cnoteoriginali.append(p2notes[i])
+                        cnotepredette.append(pnotes[i])
 
-def original_prediction(vocab, note_y_test, int_to_note):
-    nnote_y_test = np.asarray(note_y_test)
-    nnote_y_test = np.argmax(nnote_y_test, axis=1)
-    pnotes = []
-    for i in range(len(nnote_y_test)):
-        pnote = int_to_note[nnote_y_test[i]]  # nota associata al valore numerico della nota
-        pnotes.append(pnote)
 
-    return pnotes
 
-def matrice_confusione(predetti, originali, n_vocab):
-    m = np.zeros(shape=(n_vocab,n_vocab), dtype=float)
-    for i in range(len(predetti)):
-        p = np.unravel_index(np.argmax(predetti[i]), predetti[i].shape)
-        o = np.unravel_index(np.argmax(originali[i]), originali[i].shape)
-        m[o[0]][p[0]] += 1
+    cm = confusion_matrix(p2notes, pnotes)
+    n_classes = cm.shape[0]
+    with open('outfile.txt', 'wb') as f:
+        for line in cm:
+            np.savetxt(f, line, fmt='%.2f')
+    print(cm)
 
-    for i in range(len(m)):
-        somma = np.sum(m[i])
-        m[i] /= somma
-    m = m.round(4)
-    m = m*100
+    return pnotes, p_2, cm, n_classes
 
-    return m
+
+def plot_confusion_matrix(conf_mat,
+                          hide_spines=False,
+                          hide_ticks=False,
+                          figsize=None,
+                          cmap=None,
+                          colorbar=False,
+                          show_absolute=True,
+                          show_normed=False):
+
+    if not (show_absolute or show_normed):
+        raise AssertionError('Both show_absolute and show_normed are False')
+
+    total_samples = conf_mat.sum(axis=1)[:, np.newaxis]
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.grid(False)
+    if cmap is None:
+        cmap = plt.cm.Blues
+
+    if figsize is None:
+        figsize = (len(conf_mat) * 1.25, len(conf_mat) * 1.25)
+
+    if show_absolute:
+        matshow = ax.matshow(conf_mat, cmap=cmap)
+    else:
+        matshow = ax.matshow(total_samples, cmap=cmap)
+
+    if colorbar:
+        fig.colorbar(matshow)
+
+    for i in range(conf_mat.shape[0]):
+        for j in range(conf_mat.shape[1]):
+            cell_text = ""
+            if show_absolute:
+                cell_text += format(conf_mat[i, j], 'd')
+                if show_normed:
+                    cell_text += "\n" + '('
+                    cell_text += format(conf_mat[i, j], '.2f') + ')'
+            else:
+                cell_text += format(conf_mat[i, j], '.2f')
+            ax.text(x=j,
+                    y=i,
+                    s=cell_text,
+                    va='center',
+                    ha='center',
+                    color="white" if conf_mat[i, j] > 0.5 else "black")
+
+    if hide_spines:
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+    ax.yaxis.set_ticks_position('left')
+    ax.xaxis.set_ticks_position('bottom')
+    if hide_ticks:
+        ax.axes.get_yaxis().set_ticks([])
+        ax.axes.get_xaxis().set_ticks([])
+
+    plt.xlabel('predicted label')
+    plt.ylabel('true label')
+    return fig, ax
